@@ -12,6 +12,8 @@ int motorEnablePin = GPIO_NUM_8;
 int motorDirPin = GPIO_NUM_5;
 int motorPulsePin = GPIO_NUM_6;
 
+int bubblesPin = GPIO_NUM_3;
+
 #include "FastAccelStepper.h"
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
@@ -37,6 +39,10 @@ void triggerTriggered(String str) {
     stepper->runForward();
   } else if (str == "stop") {
     stepper->stopMove();
+  } else if (str == "startBubbles") {
+	analogWrite(bubblesPin, config["speedBubbles"].as<int>());
+  } else if (str == "stopBubbles") {
+	analogWrite(bubblesPin, 0);
   }
 }
 
@@ -46,19 +52,30 @@ void configUpdatedMain(String key)
   if (key == "speed") {
     stepper->setSpeedInHz(config["speed"].as<int>());
   }
+  if (key == "speedBubbles") {
+	analogWrite(bubblesPin, config["speedBubbles"].as<int>());
+	stepper->setSpeedInHz(config["speedBubbles"].as<int>());
+  }
 }
 
 void setup() {
 	// generic parameters
 	oscPort = 9004;
 	chipName = "Aquarium 32N";
-	eepromMarker = 0x56;
+	eepromMarker = 0xFB;
 	// config : read and write parameters
 	// infos : read only parameters
 
-  addIntConfig("speed", 8000);
-  addTrigger("start");
-  addTrigger("stop");
+	pinMode(bubblesPin, OUTPUT);
+	//analogWriteFrequency(10000);
+	analogWrite(bubblesPin, 0);
+
+	addIntConfig("speed", 8000);
+	addTrigger("start");
+	addTrigger("stop");
+	addIntConfig("speedBubbles", 255);
+	addTrigger("startBubbles");
+	addTrigger("stopBubbles");
 
 	Serial.begin(115200);
 	initConfig();
@@ -72,7 +89,8 @@ void setup() {
 	receivePin = 36;
 	//setupDMX();
 
-  oscSubscribe("/speed", [](const OscMessage& m) { if (m.size()>0) { stepper->setSpeedInHz(m.arg<float>(0)); stepper->runForward(); } });
+	oscSubscribe("/speed", [](const OscMessage& m) { if (m.size()>0) { stepper->setSpeedInHz(m.arg<float>(0)); stepper->runForward(); } });
+	oscSubscribe("/speedBubbles", [](const OscMessage& m) { if (m.size()>0) { analogWrite(bubblesPin, m.arg<float>(0)); } });
 
 
 	engine.init();

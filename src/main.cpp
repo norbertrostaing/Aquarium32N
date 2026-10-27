@@ -17,6 +17,7 @@ int bubblesPin = GPIO_NUM_3;
 #include "FastAccelStepper.h"
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
+unsigned int bootBubbles = 0;
 
 float fmap(float x, float in_min, float in_max, float out_min, float out_max) {
     const float run = in_max - in_min;
@@ -40,7 +41,12 @@ void triggerTriggered(String str) {
   } else if (str == "stop") {
     stepper->stopMove();
   } else if (str == "startBubbles") {
-	analogWrite(bubblesPin, config["speedBubbles"].as<int>());
+	if (config["bubblesBootDuration"].as<int>() > 0) {
+		bootBubbles = millis() + config["bubblesBootDuration"].as<int>();
+		analogWrite(bubblesPin, config["bubblesBootSpeed"].as<int>());
+	} else {
+		analogWrite(bubblesPin, config["speedBubbles"].as<int>());
+	}
   } else if (str == "stopBubbles") {
 	analogWrite(bubblesPin, 0);
   }
@@ -73,9 +79,12 @@ void setup() {
 	addIntConfig("speed", 8000);
 	addTrigger("start");
 	addTrigger("stop");
-	addIntConfig("speedBubbles", 255);
+	addIntConfig("speedBubbles", 255);	
+	addIntConfig("bubblesBootSpeed", 255);
+	addIntConfig("bubblesBootDuration", 100);
 	addTrigger("startBubbles");
 	addTrigger("stopBubbles");
+
 
 	Serial.begin(115200);
 	initConfig();
@@ -110,5 +119,9 @@ void setup() {
 
 void loop()
 {
+	if (bootBubbles >0 && bootBubbles < millis()) {
+		bootBubbles = 0;
+		analogWrite(bubblesPin, config["speedBubbles"].as<int>());
+	}
 	vTaskDelay(5);
 }
